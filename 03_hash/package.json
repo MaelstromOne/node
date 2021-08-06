@@ -7,7 +7,8 @@
   "keywords": [],
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "node index.js test-files/pipe.jpg",
+    "start:bonus": "node index.js https://raw.githubusercontent.com/emirotin/sb_hash_files/master/pipe.jpg",
     "test": "jest fs.spec.js",
     "test:bonus": "jest web.spec.js",
     "prettify": "prettier --write",
@@ -17,6 +18,10 @@
   },
   "engines": {
     "node": ">=12.0.0"
+  },
+  "dependencies": {
+    "crypto": "^1.0.1",
+    "node-fetch": "^2.6.1"
   },
   "devDependencies": {
     "@babel/core": "^7.9.0",
@@ -54,6 +59,5 @@
   "bugs": {
     "url": "https://github.com/emirotin/node-template/issues"
   },
-  "homepage": "https://github.com/emirotin/node-template#readme",
-  "dependencies": {}
+  "homepage": "https://github.com/emirotin/node-template#readme"
 }
