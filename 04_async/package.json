@@ -7,7 +7,7 @@
   "keywords": [],
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "node index.js r2 skywalker xyz \"Padmé Amidala\"",
     "test": "echo \"Tests passed\" && exit 0",
     "prettify": "prettier --write",
     "prettify:all": "prettier --write \"./**/*.{js,json}\"",
@@ -52,5 +52,8 @@
   "bugs": {
     "url": "https://github.com/emirotin/node-template/issues"
   },
-  "homepage": "https://github.com/emirotin/node-template#readme"
+  "homepage": "https://github.com/emirotin/node-template#readme",
+  "dependencies": {
+    "node-fetch": "^2.6.1"
+  }
 }
