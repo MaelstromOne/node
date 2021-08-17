@@ -61,7 +61,6 @@ app.post("/api/timers/:id/stop", (req, res) => {
 const TIMERS = [
   {
     start: Date.now(),
-    end: Date.now() + 3000,
     description: "Timer 1",
     isActive: true,
     id: nanoid(),
