@@ -30,9 +30,7 @@ app.set("view engine", "njk");
 app.use(express.json());
 app.use(express.static("public"));
 app.use(cookieParser());
-app.use("/api/timers", require("./apiTimers"));
-
-const auth = () => (req, res, next) => {
+app.use((req, res, next) => {
   if (!req.cookies["sessionId"]) {
     return next();
   }
@@ -41,7 +39,8 @@ const auth = () => (req, res, next) => {
   req.user = user;
   req.sessionId = req.cookies["sessionId"];
   next();
-};
+});
+app.use("/api/timers", require("./apiTimers"));
 
 const hash = (d) => crypto.createHash("sha256").update(d).digest("hex");
 
@@ -91,7 +90,7 @@ const deleteSession = async (sessionId) => {
   await knex("sessions").where({ session_id: sessionId }).delete();
 };
 
-app.get("/", auth(), (req, res) => {
+app.get("/", async (req, res) => {
   res.render("index", {
     user: req.user,
     authError: req.query.authError === "true" ? "Wrong username or password" : req.query.authError,
@@ -112,12 +111,12 @@ app.post("/login", bodyParser.urlencoded({ extended: false }), async (req, res) 
 app.post("/signup", bodyParser.urlencoded({ extended: false }), async (req, res) => {
   const { username, password } = req.body;
 
-  createUser(username, password);
+  await createUser(username, password);
 
   res.redirect(`/?user=${username}`);
 });
 
-app.get("/logout", auth(), async (req, res) => {
+app.get("/logout", async (req, res) => {
   if (!req.user) return res.redirect("/");
 
   await deleteSession(req.sessionId);

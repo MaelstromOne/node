@@ -7,9 +7,10 @@ const knex = require("knex")({
   connection,
 });
 
-const createTimer = (description) => {
+const createTimer = (user_id, description) => {
   return knex("timers")
     .insert({
+      user_id,
       start: new Date().toISOString(),
       description: description,
       is_active: true,
@@ -17,8 +18,8 @@ const createTimer = (description) => {
     .returning("id");
 };
 
-const getTimers = (isActive) => {
-  return knex("timers").select().where({ is_active: isActive });
+const getTimers = (user_id, isActive) => {
+  return knex("timers").select().where({ user_id, is_active: isActive });
 };
 
 const findTimerById = (id) => {
@@ -40,7 +41,7 @@ const updateTimer = async (timer) => {
 };
 
 router.get("/", async (req, res) => {
-  const timers = await getTimers(req.query.isActive);
+  const timers = await getTimers((await req.user).id, req.query.isActive);
   if (req.query.isActive) {
     timers.forEach((el) => {
       el.progress = new Date() - el.start;
@@ -51,7 +52,7 @@ router.get("/", async (req, res) => {
 });
 
 router.post("/", async (req, res) => {
-  const id = await createTimer(req.body.description);
+  const id = await createTimer((await req.user).id, req.body.description);
   res.json({ id });
 });
 
