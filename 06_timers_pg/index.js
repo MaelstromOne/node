@@ -106,7 +106,6 @@ app.post("/login", bodyParser.urlencoded({ extended: false }), async (req, res) 
   }
 
   const sessionId = await createSession(user.id);
-  console.log(sessionId);
   res.cookie("sessionId", sessionId, { httpOnly: true }).redirect("/");
 });
 
