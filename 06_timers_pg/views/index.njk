@@ -81,6 +81,13 @@
         </form>
 
         <h1>OR</h1>
+
+        [% if signupError %]
+        <div class="uk-alert uk-alert-danger">
+          <p>[[ signupError ]]</p>
+        </div>
+        [% endif %]
+
         <h2>Signup</h2>
         <form method="POST" action="/signup" enctype="application/x-www-form-urlencoded">
           <p><input type="text" name="username" class="uk-input"></p>

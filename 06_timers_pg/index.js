@@ -94,6 +94,7 @@ app.get("/", async (req, res) => {
   res.render("index", {
     user: req.user,
     authError: req.query.authError === "true" ? "Wrong username or password" : req.query.authError,
+    signupError: req.query.signupError === "true" ? "A user with the same name already exists" : req.query.signupError,
   });
 });
 
@@ -110,7 +111,10 @@ app.post("/login", bodyParser.urlencoded({ extended: false }), async (req, res) 
 
 app.post("/signup", bodyParser.urlencoded({ extended: false }), async (req, res) => {
   const { username, password } = req.body;
-
+  const user = await findUserByName(username);
+  if (user !== undefined) {
+    return res.redirect("/?signupError=true");
+  }
   await createUser(username, password);
 
   res.redirect(`/?user=${username}`);
