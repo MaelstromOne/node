@@ -4,13 +4,16 @@ const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
 const { nanoid } = require("nanoid");
 const crypto = require("crypto");
-const { client, connection } = require("./knexfile");
+require("dotenv").config();
+
+const { MongoClient, ObjectId } = require("mongodb");
+
+const clientPromise = MongoClient.connect(process.env.DB_URI, {
+  useUnifiedTopology: true,
+  // poolSize: 10
+});
 
 const app = express();
-const knex = require("knex")({
-  client,
-  connection,
-});
 
 nunjucks.configure("views", {
   autoescape: true,
@@ -30,13 +33,21 @@ app.set("view engine", "njk");
 app.use(express.json());
 app.use(express.static("public"));
 app.use(cookieParser());
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
+  try {
+    const client = await clientPromise;
+    req.db = client.db("timers");
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+app.use(async (req, res, next) => {
   if (!req.cookies["sessionId"]) {
     return next();
   }
 
-  const user = findUserBySessionId(req.cookies["sessionId"]);
-  req.user = user;
+  req.user = await findUserBySessionId(req.db, req.cookies["sessionId"]);
   req.sessionId = req.cookies["sessionId"];
   next();
 });
@@ -44,50 +55,54 @@ app.use("/api/timers", require("./apiTimers"));
 
 const hash = (d) => crypto.createHash("sha256").update(d).digest("hex");
 
-const createUser = async (username, password) => {
-  await knex("users").insert({
+const createUser = async (db, username, password) => {
+  await db.collection("users").insertOne({
     username: username,
     password: hash(password),
   });
 };
 
-const findUserByName = (username) => {
-  return knex("users")
-    .select()
-    .where({ username })
-    .limit(1)
-    .then((results) => results[0]);
+const findUserByName = (db, username) => {
+  try {
+    return db.collection("users").findOne({ username });
+  } catch {
+    return;
+  }
 };
 
-const findUserBySessionId = async (sessionId) => {
-  const session = await knex("sessions")
-    .select("user_id")
-    .where({ session_id: sessionId })
-    .limit(1)
-    .then((results) => results[0]);
+const findUserBySessionId = async (db, sessionId) => {
+  const session = await db.collection("sessions").findOne(
+    {
+      sessionId,
+    },
+    {
+      projection: {
+        userId: 1,
+      },
+    }
+  );
 
   if (!session) {
     return;
   }
 
-  return knex("users")
-    .select("id")
-    .where({ id: session.user_id })
-    .limit(1)
-    .then((results) => results[0]);
+  return db.collection("users").findOne({
+    _id: ObjectId(session.userId),
+  });
 };
 
-const createSession = async (userId) => {
+const createSession = async (db, userId) => {
   const sessionId = nanoid();
-  await knex("sessions").insert({
-    user_id: userId,
-    session_id: sessionId,
+  await db.collection("sessions").insertOne({
+    userId,
+    sessionId,
   });
+
   return sessionId;
 };
 
-const deleteSession = async (sessionId) => {
-  await knex("sessions").where({ session_id: sessionId }).delete();
+const deleteSession = async (db, sessionId) => {
+  await db.collection("sessions").deleteOne({ sessionId });
 };
 
 app.get("/", async (req, res) => {
@@ -100,22 +115,21 @@ app.get("/", async (req, res) => {
 
 app.post("/login", bodyParser.urlencoded({ extended: false }), async (req, res) => {
   const { username, password } = req.body;
-  const user = await findUserByName(username);
+  const user = await findUserByName(req.db, username);
   if (!user || user.password !== hash(password)) {
     return res.redirect("/?authError=true");
   }
-
-  const sessionId = await createSession(user.id);
+  const sessionId = await createSession(req.db, user._id);
   res.cookie("sessionId", sessionId, { httpOnly: true }).redirect("/");
 });
 
 app.post("/signup", bodyParser.urlencoded({ extended: false }), async (req, res) => {
   const { username, password } = req.body;
-  const user = await findUserByName(username);
-  if (user !== undefined) {
+  const user = await findUserByName(req.db, username);
+  if (user) {
     return res.redirect("/?signupError=true");
   }
-  await createUser(username, password);
+  await createUser(req.db, username, password);
 
   res.redirect(`/?user=${username}`);
 });
@@ -123,7 +137,7 @@ app.post("/signup", bodyParser.urlencoded({ extended: false }), async (req, res)
 app.get("/logout", async (req, res) => {
   if (!req.user) return res.redirect("/");
 
-  await deleteSession(req.sessionId);
+  await deleteSession(req.db, req.sessionId);
   res.clearCookie("sessionId").redirect("/");
 });
 

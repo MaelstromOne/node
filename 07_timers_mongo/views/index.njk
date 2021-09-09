@@ -38,8 +38,8 @@
         <div>
           <h2>Active timers:</h2>
           <ul class="uk-list">
-            <li v-for="t in activeTimers" :key="t.id">
-              <span uk-icon="close" v-on:click="stopTimer(t.id)"></span>
+            <li v-for="t in activeTimers" :key="t._id">
+              <span uk-icon="close" v-on:click="stopTimer(t._id)"></span>
               <span class="uk-text-primary mono">{{ formatDuration(t.progress) }}</span>
               <strong class="uk-text-emphasis">{{ t.description }}</strong>
               <span class="uk-text-muted mono">{{ formatTime(t.start) }}</span>
@@ -49,7 +49,7 @@
         <div>
           <h2>Old timers:</h2>
           <ul id="past-timers" class="uk-list">
-            <li v-for="t in oldTimers" :key="t.id">
+            <li v-for="t in oldTimers" :key="t._id">
               <span class="uk-text-primary mono">{{ formatDuration(t.duration) }}</span>
               <strong class="uk-text-emphasis">{{ t.description }}</strong>
               (<span class="uk-text-muted mono">{{ formatTime(t.start) }}</span>
