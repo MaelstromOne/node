@@ -1,47 +1,42 @@
 const express = require("express");
-const { client, connection } = require("./knexfile");
+const { ObjectId } = require("mongodb");
 
 const router = express.Router();
-const knex = require("knex")({
-  client,
-  connection,
-});
 
-const createTimer = (user_id, description) => {
-  return knex("timers")
-    .insert({
-      user_id,
-      start: new Date().toISOString(),
-      description: description,
-      is_active: true,
-    })
-    .returning("id");
+const createTimer = (db, userId, description) => {
+  return db.collection("timers").insertOne({
+    userId,
+    start: new Date(),
+    description: description,
+    isActive: true,
+  });
 };
 
-const getTimers = (user_id, isActive) => {
-  return knex("timers").select().where({ user_id, is_active: isActive });
+const getTimers = (db, userId, isActive) => {
+  return db.collection("timers").find({ userId, isActive }).toArray();
 };
 
-const findTimerById = (id) => {
-  return knex("timers")
-    .select()
-    .where({ id })
-    .limit(1)
-    .then((results) => results[0]);
+const findTimerById = (db, id) => {
+  return db.collection("timers").findOne({ _id: ObjectId(id) });
 };
 
-const updateTimer = async (timer) => {
-  await knex("timers")
-    .update({
-      is_active: timer.is_active,
-      duration: timer.duration,
-      end: timer.end,
-    })
-    .where({ id: timer.id });
+const updateTimer = async (db, timer) => {
+  await db.collection("timers").updateOne(
+    {
+      _id: timer._id,
+    },
+    {
+      $set: {
+        isActive: timer.isActive,
+        duration: timer.duration,
+        end: timer.end,
+      },
+    }
+  );
 };
 
 router.get("/", async (req, res) => {
-  const timers = await getTimers((await req.user).id, req.query.isActive);
+  const timers = await getTimers(req.db, req.user._id, req.query.isActive === "true");
   if (req.query.isActive) {
     timers.forEach((el) => {
       el.progress = new Date() - el.start;
@@ -52,20 +47,19 @@ router.get("/", async (req, res) => {
 });
 
 router.post("/", async (req, res) => {
-  const id = await createTimer((await req.user).id, req.body.description);
-  res.json({ id });
+  const id = await createTimer(req.db, req.user._id, req.body.description);
+  res.json({ id: id.insertedId.toString() });
 });
 
 router.post("/:id/stop", async (req, res) => {
-  const timer = await findTimerById(req.params.id);
+  const timer = await findTimerById(req.db, req.params.id);
   const end = new Date();
 
-  timer.is_active = false;
-  timer.end = end.toISOString();
+  timer.isActive = false;
+  timer.end = end;
   timer.duration = end - timer.start;
-  timer.start = timer.start.toISOString();
 
-  await updateTimer(timer);
+  await updateTimer(req.db, timer);
 
   res.sendStatus(204);
 });
