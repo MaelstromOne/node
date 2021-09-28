@@ -4,7 +4,7 @@ const { createTimer, getTimers, findTimerById, updateTimer } = require("../utils
 const router = express.Router();
 
 router.get("/", async (req, res) => {
-  const timers = await getTimers((await req.user).id, req.query.isActive);
+  const timers = await getTimers(req.user.id, req.query.isActive);
   if (req.query.isActive) {
     timers.forEach((el) => {
       el.progress = new Date() - el.start;
@@ -15,7 +15,7 @@ router.get("/", async (req, res) => {
 });
 
 router.post("/", async (req, res) => {
-  const id = await createTimer((await req.user).id, req.body.description);
+  const id = await createTimer(req.user.id, req.body.description);
   res.json({ id });
 });
 
