@@ -7,7 +7,7 @@ const router = express.Router();
 
 router.get("/", async (req, res) => {
   res.render("index", {
-    user: await req.user,
+    user: req.user,
     authError: req.query.authError === "true" ? "Wrong username or password" : req.query.authError,
     signupError: req.query.signupError === "true" ? "A user with the same name already exists" : req.query.signupError,
   });
