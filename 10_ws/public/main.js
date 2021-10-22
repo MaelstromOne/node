@@ -20,61 +20,49 @@
       status: "success",
     });
 
-  const fetchJson = (...args) =>
-    fetch(...args)
-      .then((res) =>
-        res.ok
-          ? res.status !== 204
-            ? res.json()
-            : null
-          : res.text().then((text) => {
-              throw new Error(text);
-            })
-      )
-      .catch((err) => {
-        alert(err.message);
-      });
-
   new Vue({
     el: "#app",
     data: {
+      socket: null,
+      intervalId: null,
       desc: "",
       activeTimers: [],
       oldTimers: [],
     },
     methods: {
       fetchActiveTimers() {
-        fetchJson("/api/timers?isActive=true").then((activeTimers) => {
-          this.activeTimers = activeTimers;
-        });
+        this.socket.send(
+          JSON.stringify({
+            type: "fetchTimers",
+            isActive: true,
+          })
+        );
       },
       fetchOldTimers() {
-        fetchJson("/api/timers?isActive=false").then((oldTimers) => {
-          this.oldTimers = oldTimers;
-        });
+        this.socket.send(
+          JSON.stringify({
+            type: "fetchTimers",
+            isActive: false,
+          })
+        );
       },
       createTimer() {
         const description = this.desc;
         this.desc = "";
-        fetchJson("/api/timers", {
-          method: "post",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ description }),
-        }).then(({ id }) => {
-          info(`Created new timer "${description}" [${id}]`);
-          this.fetchActiveTimers();
-        });
+        this.socket.send(
+          JSON.stringify({
+            type: "createTimer",
+            description,
+          })
+        );
       },
       stopTimer(id) {
-        fetchJson(`/api/timers/${id}/stop`, {
-          method: "post",
-        }).then(() => {
-          info(`Stopped the timer [${id}]`);
-          this.fetchActiveTimers();
-          this.fetchOldTimers();
-        });
+        this.socket.send(
+          JSON.stringify({
+            type: "stopTimer",
+            id,
+          })
+        );
       },
       formatTime(ts) {
         return new Date(ts).toTimeString().split(" ")[0];
@@ -90,13 +78,58 @@
           .map((x) => (x < 10 ? "0" : "") + x)
           .join(":");
       },
+      connect() {
+        this.socket = new WebSocket(`ws://${location.host}`);
+
+        this.socket.addEventListener("open", () => {
+          this.fetchActiveTimers();
+          this.intervalId = setInterval(() => {
+            this.fetchActiveTimers();
+          }, 1000);
+          this.fetchOldTimers();
+        });
+
+        this.socket.addEventListener("message", (message) => {
+          let data;
+          try {
+            data = JSON.parse(message.data);
+          } catch (err) {
+            alert(err.message);
+          }
+          switch (data.type) {
+            case "activeTimers": {
+              this.activeTimers = data.timers;
+              break;
+            }
+            case "oldTimers": {
+              this.oldTimers = data.timers;
+              break;
+            }
+            case "createTimer": {
+              info(`Created new timer "${data.description}" [${data.id}]`);
+              this.fetchActiveTimers();
+              break;
+            }
+            case "stopTimer": {
+              info(`Stopped the timer [${data.id}]`);
+              this.fetchActiveTimers();
+              this.fetchOldTimers();
+              break;
+            }
+          }
+        });
+
+        this.socket.addEventListener("close", () => {
+          clearInterval(this.intervalId);
+          setTimeout(() => {
+            this.connect();
+          }, 1000);
+        });
+      },
     },
+
     created() {
-      this.fetchActiveTimers();
-      setInterval(() => {
-        this.fetchActiveTimers();
-      }, 1000);
-      this.fetchOldTimers();
+      this.connect();
     },
   });
 })();
