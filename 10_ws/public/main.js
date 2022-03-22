@@ -79,7 +79,8 @@
           .join(":");
       },
       connect() {
-        this.socket = new WebSocket(`ws://${location.host}`);
+        wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
+        this.socket = new WebSocket(`${wsProtocol}//${location.host}`);
 
         this.socket.addEventListener("open", () => {
           this.fetchActiveTimers();
